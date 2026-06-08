@@ -1,4 +1,4 @@
-name: Build TrollSpeed ESP (Theos)
+name: Build TrollSpeed ESP
 
 on:
   push:
@@ -18,45 +18,42 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install dependencies
-        run: |
-          brew install bash perl ldid xz
-          echo "/opt/homebrew/opt/bash/bin" >> $GITHUB_PATH
+      - name: Cache Theos (tăng tốc build)
+        id: cache-theos
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/theos
+          key: ${{ runner.os }}-theos-${{ hashFiles('**/Makefile') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-theos-
 
       - name: Setup Theos
         uses: Randomblock1/theos-action@v1
         with:
-          theos-dir: ~/theos
-          # Bạn có thể chỉ định SDK version nếu cần
-          # sdk-repo: https://github.com/theos/sdks
+          theos-dir: ${{ github.workspace }}/theos
+          theos-sdks: 'https://github.com/theos/sdks'
 
       - name: Build package
         run: |
-          export THEOS=~/theos
+          export THEOS=${{ github.workspace }}/theos
           export PATH=$THEOS/bin:$PATH
           
           make clean
           make package FINALPACKAGE=1 FOR_RELEASE=1
-          
-          echo "✅ Build completed successfully!"
 
-      - name: Upload .tipa artifact
-        if: success()
+      - name: Upload .tipa
         uses: actions/upload-artifact@v4
         with:
           name: TrollSpeed-ESP
-          path: |
-            packages/*.tipa
+          path: packages/*.tipa
           retention-days: 30
 
-      - name: Create Release (khi push tag v*)
+      - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: packages/*.tipa
           tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
+          name: TrollSpeed ESP ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
