@@ -1,23 +1,65 @@
-name: C/C++ CI
+name: Build TrollSpeed ESP
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
-
+    runs-on: macos-latest
+    
     steps:
-    - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Theos
+      run: |
+        git clone --recursive https://github.com/theos/theos.git ~/theos
+        echo "THEOS=~/theos" >> $GITHUB_ENV
+        
+    - name: Install dependencies
+      run: |
+        brew install bash perl ldid
+        
+    - name: Setup iOS SDK
+      run: |
+        # Download and setup iOS SDK
+        cd ~/theos
+        ./bin/update-theos.sh
+        
+    - name: Build package
+      run: |
+        export THEOS=~/theos
+        export PATH=$THEOS/bin:$PATH
+        make clean
+        make package FINALPACKAGE=1
+        
+    - name: Upload build artifacts
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: TrollSpeed-build
+        path: |
+          packages/
+          .theos/
+        retention-days: 7
+        
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: packages/*.tipa
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build Status Notification
+      if: always()
+      run: |
+        if [ ${{ job.status }} = 'success' ]; then
+          echo "✅ Build succeeded!"
+        else
+          echo "❌ Build failed!"
+        fi
