@@ -1,10 +1,11 @@
-name: Build TrollSpeed ESP
+name: Build TrollSpeed ESP (Theos)
 
 on:
   push:
     branches: [ main, develop ]
+    tags: [ 'v*' ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -12,54 +13,50 @@ jobs:
     runs-on: macos-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Theos
-      run: |
-        git clone --recursive https://github.com/theos/theos.git ~/theos
-        echo "THEOS=~/theos" >> $GITHUB_ENV
-        
-    - name: Install dependencies
-      run: |
-        brew install bash perl ldid
-        
-    - name: Setup iOS SDK
-      run: |
-        # Download and setup iOS SDK
-        cd ~/theos
-        ./bin/update-theos.sh
-        
-    - name: Build package
-      run: |
-        export THEOS=~/theos
-        export PATH=$THEOS/bin:$PATH
-        make clean
-        make package FINALPACKAGE=1
-        
-    - name: Upload build artifacts
-      if: success()
-      uses: actions/upload-artifact@v3
-      with:
-        name: TrollSpeed-build
-        path: |
-          packages/
-          .theos/
-        retention-days: 7
-        
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: packages/*.tipa
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Build Status Notification
-      if: always()
-      run: |
-        if [ ${{ job.status }} = 'success' ]; then
-          echo "✅ Build succeeded!"
-        else
-          echo "❌ Build failed!"
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew install bash perl ldid xz
+          echo "/opt/homebrew/opt/bash/bin" >> $GITHUB_PATH
+
+      - name: Setup Theos
+        uses: Randomblock1/theos-action@v1
+        with:
+          theos-dir: ~/theos
+          # Bạn có thể chỉ định SDK version nếu cần
+          # sdk-repo: https://github.com/theos/sdks
+
+      - name: Build package
+        run: |
+          export THEOS=~/theos
+          export PATH=$THEOS/bin:$PATH
+          
+          make clean
+          make package FINALPACKAGE=1 FOR_RELEASE=1
+          
+          echo "✅ Build completed successfully!"
+
+      - name: Upload .tipa artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrollSpeed-ESP
+          path: |
+            packages/*.tipa
+          retention-days: 30
+
+      - name: Create Release (khi push tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packages/*.tipa
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
