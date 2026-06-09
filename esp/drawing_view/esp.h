@@ -1,5 +1,14 @@
 #import <UIKit/UIKit.h>
 #import <QuartzCore/QuartzCore.h>
+
+// Định nghĩa Vector3 (vì file này dùng nhưng chưa có)
+#ifndef Vector3
+#define Vector3
+struct Vector3 {
+    float x, y, z;
+};
+#endif
+
 #import "../Core/GameLogic.h"
 
 struct ESPBox {
@@ -14,4 +23,5 @@ struct ESPBox {
 - (void)setBoxes:(NSArray<NSValue *> *)boxes;
 - (void)updateBoxes;
 - (void)update_data;
+
 @end
