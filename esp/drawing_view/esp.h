@@ -21,11 +21,10 @@ struct Vector3 {
 };
 #endif
 
-// Forward declare các hàm KHÔNG có trong GameLogic.h
-// (giữ nguyên C++ linkage, không extern "C")
+// Forward declare các hàm không có trong GameLogic.h
 uint64_t GetGameModule_Base(const char* moduleName);
 Vector3  getPositionExt(uint64_t transform);
-void*    GetNickName(uint64_t PawnObject);   // trả về NSString*
+NSString* GetNickName(uint64_t PawnObject);   // Trả về NSString*, không phải void*
 Vector3  WorldToScreen(Vector3 worldPos, float* matrix, int width, int height);
 
 struct ESPBox {
